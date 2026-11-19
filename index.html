@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Данные устройства</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root {
+    --bg: var(--tg-theme-bg-color, #0f1218);
+    --card: var(--tg-theme-secondary-bg-color, #1a1f2b);
+    --text: var(--tg-theme-text-color, #ffffff);
+    --hint: var(--tg-theme-hint-color, #8b93a7);
+    --accent: var(--tg-theme-button-color, #3b82f6);
+    --accent-text: var(--tg-theme-button-text-color, #ffffff);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .wrap {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 24px 16px calc(28px + env(safe-area-inset-bottom));
+  }
+  .hero { text-align: center; margin-bottom: 22px; animation: fadeUp .5s ease both; }
+  .logo {
+    width: 72px; height: 72px; margin: 0 auto 14px;
+    border-radius: 22px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 36px;
+    background: linear-gradient(135deg, var(--accent), #8b5cf6);
+    box-shadow: 0 10px 30px rgba(99, 102, 241, .35);
+  }
+  h1 { margin: 0 0 6px; font-size: 24px; }
+  .sub { margin: 0; color: var(--hint); font-size: 15px; line-height: 1.4; }
+  .cards { display: grid; gap: 10px; }
+  .card {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 16px;
+    background: var(--card);
+    border-radius: 16px;
+    animation: fadeUp .5s ease both;
+    animation-delay: calc(var(--i) * 70ms + 100ms);
+  }
+  .icon {
+    flex: 0 0 44px; height: 44px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    background: rgba(127, 127, 127, .15);
+  }
+  .label { font-size: 13px; color: var(--hint); margin-bottom: 2px; }
+  .value { font-size: 17px; font-weight: 600; word-break: break-word; }
+  .value.muted { color: var(--hint); font-weight: 500; font-style: italic; }
+  button {
+    width: 100%; margin-top: 18px; padding: 16px;
+    border: 0; border-radius: 14px;
+    font-size: 17px; font-weight: 600;
+    color: var(--accent-text); background: var(--accent);
+    cursor: pointer;
+    transition: transform .1s ease, opacity .2s ease;
+  }
+  button:active { transform: scale(.98); }
+  button:disabled { opacity: .5; cursor: default; }
+  .notice {
+    margin-top: 14px; padding: 12px 14px;
+    border-radius: 12px;
+    background: rgba(245, 158, 11, .15);
+    color: #f59e0b;
+    font-size: 14px; line-height: 1.4;
+  }
+  .status { margin-top: 12px; text-align: center; font-size: 14px; color: #ef4444; }
+  .privacy { margin-top: 18px; text-align: center; font-size: 13px; line-height: 1.4; color: var(--hint); }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hero, .card { animation: none; }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <div class="logo">📱</div>
+      <h1>Ваше устройство</h1>
+      <p class="sub">Вот что браузер Telegram рассказывает о вашем устройстве</p>
+    </div>
+
+    <div class="cards">
+      <div class="card" style="--i:0">
+        <div class="icon">🖥</div>
+        <div><div class="label">Операционная система</div><div class="value" id="v-os">Определяю…</div></div>
+      </div>
+      <div class="card" style="--i:1">
+        <div class="icon">📐</div>
+        <div><div class="label">Экран</div><div class="value" id="v-screen">Определяю…</div></div>
+      </div>
+      <div class="card" style="--i:2">
+        <div class="icon">⚙️</div>
+        <div><div class="label">Ядра процессора</div><div class="value" id="v-cores">Определяю…</div></div>
+      </div>
+      <div class="card" style="--i:3">
+        <div class="icon">🧠</div>
+        <div><div class="label">Оперативная память</div><div class="value" id="v-ram">Определяю…</div></div>
+      </div>
+      <div class="card" style="--i:4">
+        <div class="icon">✈️</div>
+        <div><div class="label">Приложение Telegram</div><div class="value" id="v-tg">Определяю…</div></div>
+      </div>
+    </div>
+
+    <div class="notice" id="notice" hidden>
+      Вы открыли страницу в обычном браузере. Данные показаны для проверки,
+      а отправить их можно только из Telegram — кнопкой в чате с ботом.
+    </div>
+
+    <button id="btn" disabled>Собираю данные…</button>
+    <div class="status" id="status" hidden></div>
+
+    <p class="privacy">🔒 Данные уйдут только боту и только после нажатия кнопки.<br>Если что-то система скрыла — так и будет написано.</p>
+  </div>
+
+<script>
+(function () {
+  "use strict";
+
+  var HIDDEN = "Скрыто системой";
+  var SEND_LABEL = "📤 Отправить в чат";
+  var tg = (window.Telegram && window.Telegram.WebApp) || null;
+  var inTelegram = !!(tg && tg.platform && tg.platform !== "unknown");
+  var payload = {};
+
+  try { if (tg) { tg.ready(); tg.expand(); } } catch (e) {}
+
+  function $(id) { return document.getElementById(id); }
+
+  // Безопасно выполняет функцию: если браузер ругнулся — вернёт null, а не сломает страницу
+  function safe(fn) {
+    try {
+      var v = fn();
+      return (v === undefined || v === null || v === "" || v !== v) ? null : v;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  async function detectOS() {
+    var ua = safe(function () { return navigator.userAgent; }) || "";
+    var name = null, version = null;
+
+    // Современный способ (Chrome, Android, Windows)
+    try {
+      var uad = navigator.userAgentData;
+      if (uad) {
+        name = uad.platform || null;
+        if (uad.getHighEntropyValues) {
+          var he = await uad.getHighEntropyValues(["platformVersion"]);
+          version = (he && he.platformVersion) ? he.platformVersion : null;
+        }
+      }
+    } catch (e) {}
+
+    // Запасной способ — разбираем строку User-Agent (iPhone, Mac и т.д.)
+    if (!name) {
+      if (/Android/i.test(ua)) name = "Android";
+      else if (/iPhone|iPad|iPod/i.test(ua)) name = "iOS";
+      else if (/Windows/i.test(ua)) name = "Windows";
+      else if (/Mac OS X|Macintosh/i.test(ua)) name = "macOS";
+      else if (/CrOS/i.test(ua)) name = "ChromeOS";
+      else if (/Linux/i.test(ua)) name = "Linux";
+    }
+    if (!version) {
+      var m = null;
+      if (name === "Android") m = ua.match(/Android\s([\d.]+)/);
+      else if (name === "iOS") m = ua.match(/OS ([\d_]+) like Mac OS X/);
+      if (m) version = m[1].replace(/_/g, ".");
+    }
+    // Windows: platformVersion 13 и выше означает Windows 11
+    if (name === "Windows" && version) {
+      var major = parseInt(version, 10);
+      version = isNaN(major) ? null : (major >= 13 ? "11" : (major >= 1 ? "10" : null));
+    }
+    return { name: name, version: version };
+  }
+
+  async function collect() {
+    var osInfo = await detectOS();
+    var dpr = safe(function () { return window.devicePixelRatio; });
+    var sw = safe(function () { return Math.round(screen.width); });
+    var sh = safe(function () { return Math.round(screen.height); });
+
+    return {
+      os: osInfo.name,
+      osVersion: osInfo.version,
+      screen: (sw && sh) ? sw + "×" + sh : null,
+      pixelRatio: dpr ? Math.round(dpr * 100) / 100 : null,
+      physical: (sw && sh && dpr) ? Math.round(sw * dpr) + "×" + Math.round(sh * dpr) : null,
+      cores: safe(function () { return navigator.hardwareConcurrency; }),
+      ram: safe(function () { return navigator.deviceMemory; }),   // на iOS/Safari будет null
+      tgPlatform: inTelegram ? safe(function () { return tg.platform; }) : null,
+      tgVersion: inTelegram ? safe(function () { return tg.version; }) : null
+    };
+  }
+
+  function put(id, text) {
+    var el = $(id);
+    if (!el) return;
+    if (text) { el.textContent = text; el.classList.remove("muted"); }
+    else { el.textContent = HIDDEN; el.classList.add("muted"); }
+  }
+
+  function render(d) {
+    put("v-os", d.os ? d.os + (d.osVersion ? " " + d.osVersion : "") : null);
+    put("v-screen", d.screen ? d.screen + (d.pixelRatio ? "  ·  ×" + d.pixelRatio : "") : null);
+    put("v-cores", d.cores ? String(d.cores) : null);
+    put("v-ram", d.ram ? (d.ram >= 8 ? "8 ГБ или больше" : d.ram + " ГБ") : null);
+    put("v-tg", d.tgPlatform ? d.tgPlatform + (d.tgVersion ? " " + d.tgVersion : "") : null);
+  }
+
+  function setStatus(text) {
+    var el = $("status");
+    el.textContent = text;
+    el.hidden = false;
+  }
+
+  function onSend() {
+    var btn = $("btn");
+    try {
+      btn.disabled = true;
+      btn.textContent = "Отправляю…";
+      tg.sendData(JSON.stringify(payload));   // после этого Telegram сам закроет окно
+    } catch (e) {
+      btn.disabled = false;
+      btn.textContent = SEND_LABEL;
+      setStatus("Не получилось отправить. Закройте окно и откройте его снова кнопкой из чата (команда /start).");
+    }
+  }
+
+  async function init() {
+    try { payload = await collect(); } catch (e) { payload = {}; }
+    render(payload);
+
+    var btn = $("btn");
+    if (!inTelegram) {
+      $("notice").hidden = false;
+      btn.textContent = "Работает только внутри Telegram";
+      return;
+    }
+    btn.disabled = false;
+    btn.textContent = SEND_LABEL;
+    btn.addEventListener("click", onSend);
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
