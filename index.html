@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>Данные устройства</title>
+<title>Системный отчёт</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
   :root {
@@ -28,7 +28,7 @@
     margin: 0 auto;
     padding: 24px 16px calc(28px + env(safe-area-inset-bottom));
   }
-  .hero { text-align: center; margin-bottom: 22px; animation: fadeUp .5s ease both; }
+  .hero { text-align: center; margin-bottom: 20px; animation: fadeUp .5s ease both; }
   .logo {
     width: 72px; height: 72px; margin: 0 auto 14px;
     border-radius: 22px;
@@ -39,27 +39,33 @@
   }
   h1 { margin: 0 0 6px; font-size: 24px; }
   .sub { margin: 0; color: var(--hint); font-size: 15px; line-height: 1.4; }
-  .cards { display: grid; gap: 10px; }
+  .section-title {
+    margin: 20px 4px 8px;
+    font-size: 13px; font-weight: 600;
+    letter-spacing: .08em; text-transform: uppercase;
+    color: var(--hint);
+  }
+  .cards { display: grid; gap: 8px; }
   .card {
     display: flex; align-items: center; gap: 14px;
-    padding: 14px 16px;
+    padding: 12px 16px;
     background: var(--card);
     border-radius: 16px;
     animation: fadeUp .5s ease both;
-    animation-delay: calc(var(--i) * 70ms + 100ms);
+    animation-delay: calc(var(--i) * 60ms + 100ms);
   }
   .icon {
-    flex: 0 0 44px; height: 44px;
+    flex: 0 0 42px; height: 42px;
     border-radius: 12px;
     display: flex; align-items: center; justify-content: center;
-    font-size: 22px;
+    font-size: 21px;
     background: rgba(127, 127, 127, .15);
   }
   .label { font-size: 13px; color: var(--hint); margin-bottom: 2px; }
-  .value { font-size: 17px; font-weight: 600; word-break: break-word; }
+  .value { font-size: 16px; font-weight: 600; word-break: break-word; }
   .value.muted { color: var(--hint); font-weight: 500; font-style: italic; }
   button {
-    width: 100%; margin-top: 18px; padding: 16px;
+    width: 100%; margin-top: 22px; padding: 16px;
     border: 0; border-radius: 14px;
     font-size: 17px; font-weight: 600;
     color: var(--accent-text); background: var(--accent);
@@ -69,7 +75,7 @@
   button:active { transform: scale(.98); }
   button:disabled { opacity: .5; cursor: default; }
   .notice {
-    margin-top: 14px; padding: 12px 14px;
+    margin-top: 16px; padding: 12px 14px;
     border-radius: 12px;
     background: rgba(245, 158, 11, .15);
     color: #f59e0b;
@@ -77,6 +83,7 @@
   }
   .status { margin-top: 12px; text-align: center; font-size: 14px; color: #ef4444; }
   .privacy { margin-top: 18px; text-align: center; font-size: 13px; line-height: 1.4; color: var(--hint); }
+  .version { margin-top: 8px; text-align: center; font-size: 12px; color: var(--hint); opacity: .7; }
   @keyframes fadeUp {
     from { opacity: 0; transform: translateY(12px); }
     to   { opacity: 1; transform: translateY(0); }
@@ -89,31 +96,56 @@
 <body>
   <div class="wrap">
     <div class="hero">
-      <div class="logo">📱</div>
-      <h1>Ваше устройство</h1>
+      <div class="logo">📊</div>
+      <h1>Системный отчёт</h1>
       <p class="sub">Вот что браузер Telegram рассказывает о вашем устройстве</p>
     </div>
 
+    <div class="section-title">💻 Система</div>
     <div class="cards">
       <div class="card" style="--i:0">
         <div class="icon">🖥</div>
         <div><div class="label">Операционная система</div><div class="value" id="v-os">Определяю…</div></div>
       </div>
       <div class="card" style="--i:1">
-        <div class="icon">📐</div>
-        <div><div class="label">Экран</div><div class="value" id="v-screen">Определяю…</div></div>
+        <div class="icon">🧬</div>
+        <div><div class="label">Архитектура</div><div class="value" id="v-arch">Определяю…</div></div>
       </div>
       <div class="card" style="--i:2">
-        <div class="icon">⚙️</div>
-        <div><div class="label">Ядра процессора</div><div class="value" id="v-cores">Определяю…</div></div>
+        <div class="icon">🧭</div>
+        <div><div class="label">Платформа</div><div class="value" id="v-platform">Определяю…</div></div>
       </div>
       <div class="card" style="--i:3">
-        <div class="icon">🧠</div>
-        <div><div class="label">Оперативная память</div><div class="value" id="v-ram">Определяю…</div></div>
+        <div class="icon">🌐</div>
+        <div><div class="label">Браузер</div><div class="value" id="v-browser">Определяю…</div></div>
       </div>
       <div class="card" style="--i:4">
         <div class="icon">✈️</div>
-        <div><div class="label">Приложение Telegram</div><div class="value" id="v-tg">Определяю…</div></div>
+        <div><div class="label">Версия Telegram</div><div class="value" id="v-tg">Определяю…</div></div>
+      </div>
+      <div class="card" style="--i:5">
+        <div class="icon">🕒</div>
+        <div><div class="label">Часовой пояс</div><div class="value" id="v-tz">Определяю…</div></div>
+      </div>
+    </div>
+
+    <div class="section-title">🔧 Железо</div>
+    <div class="cards">
+      <div class="card" style="--i:6">
+        <div class="icon">⚙️</div>
+        <div><div class="label">Ядра процессора</div><div class="value" id="v-cores">Определяю…</div></div>
+      </div>
+      <div class="card" style="--i:7">
+        <div class="icon">🧠</div>
+        <div><div class="label">Оперативная память</div><div class="value" id="v-ram">Определяю…</div></div>
+      </div>
+      <div class="card" style="--i:8">
+        <div class="icon">📐</div>
+        <div><div class="label">Экран</div><div class="value" id="v-screen">Определяю…</div></div>
+      </div>
+      <div class="card" style="--i:9">
+        <div class="icon">🎞</div>
+        <div><div class="label">Частота обновления экрана</div><div class="value" id="v-hz">Измеряю…</div></div>
       </div>
     </div>
 
@@ -126,17 +158,30 @@
     <div class="status" id="status" hidden></div>
 
     <p class="privacy">🔒 Данные уйдут только боту и только после нажатия кнопки.<br>Если что-то система скрыла — так и будет написано.</p>
+    <div class="version" id="version"></div>
   </div>
 
 <script>
 (function () {
   "use strict";
 
+  var APP_VERSION = "2.0";
   var HIDDEN = "Скрыто системой";
   var SEND_LABEL = "📤 Отправить в чат";
   var tg = (window.Telegram && window.Telegram.WebApp) || null;
   var inTelegram = !!(tg && tg.platform && tg.platform !== "unknown");
-  var payload = {};
+  var payload = { v: APP_VERSION };
+
+  var PLATFORMS = {
+    android:   ["Телефон", "Android"],
+    android_x: ["Телефон", "Android"],
+    ios:       ["Телефон", "iOS"],
+    tdesktop:  ["ПК", "Telegram Desktop"],
+    macos:     ["ПК", "macOS"],
+    weba:      ["Браузер", "Telegram Web A"],
+    webk:      ["Браузер", "Telegram Web K"],
+    web:       ["Браузер", "Telegram Web"]
+  };
 
   try { if (tg) { tg.ready(); tg.expand(); } } catch (e) {}
 
@@ -152,23 +197,32 @@
     }
   }
 
-  async function detectOS() {
-    var ua = safe(function () { return navigator.userAgent; }) || "";
-    var name = null, version = null;
+  // То же самое для сложных (в том числе асинхронных) шагов
+  async function attempt(fn) {
+    try { return await fn(); } catch (e) { return null; }
+  }
 
-    // Современный способ (Chrome, Android, Windows)
+  // ---------- Подсказки браузера (Chrome/Android/Windows) ----------
+  async function getHighEntropy() {
     try {
       var uad = navigator.userAgentData;
-      if (uad) {
-        name = uad.platform || null;
-        if (uad.getHighEntropyValues) {
-          var he = await uad.getHighEntropyValues(["platformVersion"]);
-          version = (he && he.platformVersion) ? he.platformVersion : null;
-        }
+      if (uad && uad.getHighEntropyValues) {
+        return (await uad.getHighEntropyValues(["platformVersion", "architecture", "bitness"])) || {};
       }
     } catch (e) {}
+    return {};
+  }
 
-    // Запасной способ — разбираем строку User-Agent (iPhone, Mac и т.д.)
+  // ---------- Операционная система ----------
+  function detectOS(ua, he) {
+    var name = null, version = null;
+
+    try {
+      var uad = navigator.userAgentData;
+      if (uad && uad.platform) name = uad.platform;
+    } catch (e) {}
+    if (he && he.platformVersion) version = he.platformVersion;
+
     if (!name) {
       if (/Android/i.test(ua)) name = "Android";
       else if (/iPhone|iPad|iPod/i.test(ua)) name = "iOS";
@@ -191,25 +245,147 @@
     return { name: name, version: version };
   }
 
-  async function collect() {
-    var osInfo = await detectOS();
+  // ---------- Архитектура процессора: 64-bit или 32-bit ----------
+  function detectArch(ua, osName, osVersion, he) {
+    var bits = null, cpu = null;
+
+    // 1. Ищем подсказки прямо в строке User-Agent
+    if (/armv8l/i.test(ua)) { bits = 32; cpu = "ARM"; }
+    else if (/aarch64|arm64|armv8/i.test(ua)) { bits = 64; cpu = "ARM"; }
+    else if (/x86_64|x86-64|amd64|\bx64\b|Win64|WOW64|IA64/i.test(ua)) { bits = 64; cpu = "x86"; }
+    else if (/armv7|armv6|armeabi/i.test(ua)) { bits = 32; cpu = "ARM"; }
+    else if (/i[3-6]86|\bx86\b/i.test(ua)) { bits = 32; cpu = "x86"; }
+
+    // 2. В строке пусто — делаем вывод по системе
+    if (!bits) {
+      if (osName === "iOS") {
+        if (parseInt(osVersion, 10) >= 11) { bits = 64; cpu = cpu || "ARM"; }   // iOS 11+ только 64-bit
+      } else if (osName === "macOS") {
+        bits = 64;                                                              // современный macOS только 64-bit
+      } else if (osName === "Windows" && /Windows NT/.test(ua)) {
+        bits = 32; cpu = cpu || "x86";                                          // нет меток Win64/x64 — 32-bit
+      }
+    }
+
+    // 3. Запасной вариант: подсказки браузера (на Android в User-Agent архитектуры обычно нет)
+    if (he) {
+      if (!bits && he.bitness) {
+        var b = parseInt(he.bitness, 10);
+        if (b === 32 || b === 64) bits = b;
+      }
+      if (!cpu && he.architecture) {
+        var a = String(he.architecture).toLowerCase();
+        if (a.indexOf("arm") === 0) cpu = "ARM";
+        else if (a.indexOf("x86") === 0) cpu = "x86";
+      }
+    }
+    return { bits: bits, cpu: cpu };
+  }
+
+  // ---------- Название браузера (разбор User-Agent) ----------
+  function detectBrowser(ua) {
+    var m;
+    function major(v) { return String(v).split(".")[0]; }
+
+    if ((m = ua.match(/(?:EdgA|EdgiOS|Edg|Edge)\/([\d.]+)/))) return { name: "Microsoft Edge", version: major(m[1]) };
+    if ((m = ua.match(/(?:OPR|OPiOS)\/([\d.]+)/))) return { name: "Opera", version: major(m[1]) };
+    if ((m = ua.match(/YaBrowser\/([\d.]+)/))) return { name: "Яндекс Браузер", version: major(m[1]) };
+    if ((m = ua.match(/SamsungBrowser\/([\d.]+)/))) return { name: "Samsung Internet", version: major(m[1]) };
+    if ((m = ua.match(/(?:Firefox|FxiOS)\/([\d.]+)/))) return { name: "Firefox", version: major(m[1]) };
+
+    if ((m = ua.match(/QtWebEngine\/([\d.]+)/))) {
+      var c = ua.match(/Chrome\/([\d.]+)/);
+      return { name: "Qt WebEngine" + (c ? " (Chromium " + major(c[1]) + ")" : ""), version: null };
+    }
+    if (/; wv\)/.test(ua) && (m = ua.match(/Chrome\/([\d.]+)/))) return { name: "Android WebView", version: major(m[1]) };
+    if ((m = ua.match(/(?:Chrome|CriOS)\/([\d.]+)/))) return { name: "Chrome", version: major(m[1]) };
+    if ((m = ua.match(/Version\/([\d.]+).*Safari\//))) return { name: "Safari", version: major(m[1]) };
+    if (/AppleWebKit/.test(ua) && /iPhone|iPad|iPod/.test(ua)) return { name: "Встроенный браузер iOS (WebKit)", version: null };
+    if (/AppleWebKit/.test(ua)) return { name: "WebKit", version: null };
+    return { name: null, version: null };
+  }
+
+  // ---------- Частота обновления экрана через requestAnimationFrame ----------
+  function snapHz(hz) {
+    var known = [24, 30, 48, 50, 60, 72, 75, 90, 100, 120, 144, 165, 240];
+    var best = known[0];
+    for (var i = 1; i < known.length; i++) {
+      if (Math.abs(known[i] - hz) < Math.abs(best - hz)) best = known[i];
+    }
+    return (Math.abs(best - hz) / best <= 0.08) ? best : Math.round(hz);
+  }
+
+  function measureRefreshRate() {
+    return new Promise(function (resolve) {
+      var finished = false;
+      try {
+        if (!window.requestAnimationFrame) { resolve(null); return; }
+        var times = [];
+
+        var finish = function () {
+          if (finished) return;
+          finished = true;
+          try {
+            var deltas = [];
+            for (var i = 1; i < times.length; i++) deltas.push(times[i] - times[i - 1]);
+            deltas = deltas.slice(3);                       // первые кадры «разгоняются» — пропускаем
+            if (deltas.length < 8) { resolve(null); return; }
+            deltas.sort(function (a, b) { return a - b; });
+            var median = deltas[Math.floor(deltas.length / 2)];
+            var hz = 1000 / median;
+            resolve((hz >= 20 && hz <= 400) ? snapHz(hz) : null);
+          } catch (e) { resolve(null); }
+        };
+
+        var tick = function (t) {
+          if (finished) return;
+          times.push(t);
+          if (t - times[0] >= 700 && times.length > 12) { finish(); return; }
+          window.requestAnimationFrame(tick);
+        };
+
+        window.requestAnimationFrame(tick);
+        setTimeout(finish, 2500);                           // страховка: если кадры не идут (окно скрыто)
+      } catch (e) {
+        if (!finished) { finished = true; resolve(null); }
+      }
+    });
+  }
+
+  // ---------- Сбор всех данных (каждый кусок независим) ----------
+  async function collectBase() {
+    var he = await getHighEntropy();
+    var ua = safe(function () { return navigator.userAgent; }) || "";
+
+    var osInfo = (await attempt(function () { return detectOS(ua, he); })) || {};
+    var arch = (await attempt(function () { return detectArch(ua, osInfo.name, osInfo.version, he); })) || {};
+    var br = (await attempt(function () { return detectBrowser(ua); })) || {};
+
     var dpr = safe(function () { return window.devicePixelRatio; });
     var sw = safe(function () { return Math.round(screen.width); });
     var sh = safe(function () { return Math.round(screen.height); });
 
     return {
-      os: osInfo.name,
-      osVersion: osInfo.version,
+      v: APP_VERSION,
+      os: osInfo.name || null,
+      osVersion: osInfo.version || null,
+      archBits: arch.bits || null,
+      archCpu: arch.cpu || null,
+      tgPlatform: inTelegram ? safe(function () { return tg.platform; }) : null,
+      tgVersion: inTelegram ? safe(function () { return tg.version; }) : null,
+      browser: br.name || null,
+      browserVersion: br.version || null,
+      timezone: safe(function () { return Intl.DateTimeFormat().resolvedOptions().timeZone; }),
+      tzOffset: safe(function () { return 0 - new Date().getTimezoneOffset(); }),   // минуты от UTC
+      cores: safe(function () { return navigator.hardwareConcurrency; }),
+      ram: safe(function () { return navigator.deviceMemory; }),                    // на iOS/Safari будет null
       screen: (sw && sh) ? sw + "×" + sh : null,
       pixelRatio: dpr ? Math.round(dpr * 100) / 100 : null,
-      physical: (sw && sh && dpr) ? Math.round(sw * dpr) + "×" + Math.round(sh * dpr) : null,
-      cores: safe(function () { return navigator.hardwareConcurrency; }),
-      ram: safe(function () { return navigator.deviceMemory; }),   // на iOS/Safari будет null
-      tgPlatform: inTelegram ? safe(function () { return tg.platform; }) : null,
-      tgVersion: inTelegram ? safe(function () { return tg.version; }) : null
+      physical: (sw && sh && dpr) ? Math.round(sw * dpr) + "×" + Math.round(sh * dpr) : null
     };
   }
 
+  // ---------- Показ на экране ----------
   function put(id, text) {
     var el = $(id);
     if (!el) return;
@@ -217,12 +393,33 @@
     else { el.textContent = HIDDEN; el.classList.add("muted"); }
   }
 
+  function platformText(p) {
+    if (!p) return null;
+    var k = PLATFORMS[String(p).toLowerCase()];
+    return k ? k[0] + " (" + k[1] + ")" : String(p);
+  }
+
+  function tzText(d) {
+    var off = null;
+    if (typeof d.tzOffset === "number" && Math.abs(d.tzOffset) <= 840) {
+      var total = Math.abs(d.tzOffset), h = Math.floor(total / 60), m = total % 60;
+      off = "UTC" + (d.tzOffset >= 0 ? "+" : "-") + h + (m ? ":" + (m < 10 ? "0" + m : m) : "");
+    }
+    if (d.timezone && off) return d.timezone + " (" + off + ")";
+    return d.timezone || off;
+  }
+
   function render(d) {
     put("v-os", d.os ? d.os + (d.osVersion ? " " + d.osVersion : "") : null);
-    put("v-screen", d.screen ? d.screen + (d.pixelRatio ? "  ·  ×" + d.pixelRatio : "") : null);
+    put("v-arch", d.archBits ? d.archBits + "-bit" + (d.archCpu ? " (" + d.archCpu + ")" : "") : (d.archCpu || null));
+    put("v-platform", platformText(d.tgPlatform));
+    put("v-browser", d.browser ? d.browser + (d.browserVersion ? " " + d.browserVersion : "") : null);
+    put("v-tg", d.tgVersion ? String(d.tgVersion) : null);
+    put("v-tz", tzText(d));
     put("v-cores", d.cores ? String(d.cores) : null);
     put("v-ram", d.ram ? (d.ram >= 8 ? "8 ГБ или больше" : d.ram + " ГБ") : null);
-    put("v-tg", d.tgPlatform ? d.tgPlatform + (d.tgVersion ? " " + d.tgVersion : "") : null);
+    put("v-screen", d.screen ? d.screen + (d.pixelRatio ? "  ·  ×" + d.pixelRatio : "") : null);
+    if ("refreshRate" in d) put("v-hz", d.refreshRate ? d.refreshRate + " Гц" : null);   // пока меряем — «Измеряю…»
   }
 
   function setStatus(text) {
@@ -245,7 +442,14 @@
   }
 
   async function init() {
-    try { payload = await collect(); } catch (e) { payload = {}; }
+    var versionEl = $("version");
+    if (versionEl) versionEl.textContent = "Версия страницы " + APP_VERSION;
+
+    try { payload = await collectBase(); } catch (e) { payload = { v: APP_VERSION }; }
+    render(payload);                                   // сразу показываем всё, кроме частоты
+
+    var hz = await attempt(measureRefreshRate);        // ~0,7 секунды
+    payload.refreshRate = hz || null;
     render(payload);
 
     var btn = $("btn");
