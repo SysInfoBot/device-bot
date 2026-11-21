@@ -1,17 +1,16 @@
 # -*- coding: utf-8 -*-
 """
-Telegram-бот «Данные устройства».
+Telegram-бот «Системный отчёт» (версия 2).
 
 Как это работает:
-  1. Человек пишет боту /start и видит кнопку «Узнать данные устройства».
+  1. Человек пишет боту /start и видит кнопку «Системный отчёт».
   2. Кнопка открывает мини-приложение (WebApp) — страницу index.html.
   3. Страница собирает данные об устройстве и после нажатия «Отправить» отдаёт их боту.
-  4. Бот оформляет данные и присылает их в чат.
+  4. Бот оформляет данные в отчёт (Markdown) и присылает в чат.
 
-Бот работает через polling (сам опрашивает Telegram) — вебхуки и SSL не нужны.
-Секреты (токен, ссылка) берутся из переменных окружения — в коде их нет.
+Бот работает через polling — вебхуки и SSL не нужны.
+Секреты (токен, ссылка) берутся из переменных окружения Render — в коде их нет.
 """
-import html
 import json
 import logging
 import math
@@ -32,92 +31,216 @@ log = logging.getLogger("device-bot")
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "").strip()
 WEBAPP_URL = os.environ.get("WEBAPP_URL", "").strip()
 
-HIDDEN = "Скрыто системой"
+# Меняйте это число при каждом обновлении index.html ("2" -> "3" -> "4"...).
+# Бот добавит его к ссылке (?v=2), и Telegram не сможет взять старую страницу из кэша.
+CACHE_BUSTER = "2"
+
+NO_DATA = "Скрыто системой"
+LINE = "━━━━━━━━━━━━━━━━━━"
+
+# Что Telegram пишет в WebApp.platform -> как показать человеку
+PLATFORMS = {
+    "android": ("Телефон", "Android"),
+    "android_x": ("Телефон", "Android"),
+    "ios": ("Телефон", "iOS"),
+    "tdesktop": ("ПК", "Telegram Desktop"),
+    "macos": ("ПК", "macOS"),
+    "weba": ("Браузер", "Telegram Web A"),
+    "webk": ("Браузер", "Telegram Web K"),
+    "web": ("Браузер", "Telegram Web"),
+}
 
 
 # ---------------------------------------------------------------------------
-#  Разбор данных от WebApp (всё обёрнуто так, чтобы бот НИКОГДА не падал)
+#  Мелкие помощники
 # ---------------------------------------------------------------------------
-def clean(value, limit=120):
-    """Делает значение безопасным для Telegram. Если значения нет — вернёт None."""
+def clean(value, limit=100):
+    """Возвращает аккуратную строку или None, если значения нет."""
     try:
         if value is None:
             return None
         text = str(value).strip()
         if not text or text.lower() in ("null", "none", "undefined", "unknown", "nan"):
             return None
-        return html.escape(text[:limit])
+        return text[:limit]
     except Exception:
         return None
 
 
-def to_number(value):
-    """Превращает значение в положительное число. Если не вышло — None."""
+def to_float(value):
+    """Число или None (NaN, бесконечность и мусор отбрасываются)."""
     try:
         number = float(value)
-        if not math.isfinite(number) or number <= 0:
-            return None
-        return number
+        return number if math.isfinite(number) else None
     except Exception:
         return None
 
 
+_MD_SPECIAL = "_*[]()~`>#+-=|{}.!\\"
+
+
+def md(text):
+    """Экранирует текст для MarkdownV2, чтобы Telegram не ругался на символы."""
+    return "".join("\\" + ch if ch in _MD_SPECIAL else ch for ch in str(text))
+
+
+# ---------------------------------------------------------------------------
+#  Форматирование каждого параметра. Каждая функция вернёт текст или None.
+#  Если внутри что-то сломается — безопасная обёртка safe_field() покажет
+#  «Скрыто системой», а остальные строки отчёта не пострадают.
+# ---------------------------------------------------------------------------
+def fmt_os(d):
+    name = clean(d.get("os"))
+    if not name:
+        return None
+    version = clean(d.get("osVersion"))
+    return f"{name} {version}" if version else name
+
+
+def fmt_arch(d):
+    bits = to_float(d.get("archBits"))
+    cpu = clean(d.get("archCpu"), 20)
+    has_bits = bits in (32.0, 64.0)
+    if has_bits and cpu:
+        return f"{int(bits)}-bit ({cpu})"
+    if has_bits:
+        return f"{int(bits)}-bit"
+    return cpu
+
+
+def fmt_platform(d):
+    raw = clean(d.get("tgPlatform"), 30)
+    if not raw:
+        return None
+    known = PLATFORMS.get(raw.lower())
+    return f"{known[0]} ({known[1]})" if known else raw
+
+
+def fmt_browser(d):
+    name = clean(d.get("browser"))
+    if not name:
+        return None
+    version = clean(d.get("browserVersion"), 20)
+    return f"{name} {version}" if version else name
+
+
+def fmt_tg_version(d):
+    return clean(d.get("tgVersion"), 20)
+
+
+def fmt_timezone(d):
+    zone = clean(d.get("timezone"), 60)
+    offset = to_float(d.get("tzOffset"))
+    offset_text = None
+    if offset is not None and abs(offset) <= 14 * 60:
+        total = int(offset)
+        sign = "+" if total >= 0 else "-"
+        hours, minutes = divmod(abs(total), 60)
+        offset_text = f"UTC{sign}{hours}" + (f":{minutes:02d}" if minutes else "")
+    if zone and offset_text:
+        return f"{zone} ({offset_text})"
+    return zone or offset_text
+
+
+def fmt_cores(d):
+    cores = to_float(d.get("cores"))
+    if cores and 0 < cores <= 1024:
+        return str(int(cores))
+    return None
+
+
+def fmt_ram(d):
+    ram = to_float(d.get("ram"))
+    if not ram or ram <= 0:
+        return None
+    if ram >= 8:
+        return "8 ГБ или больше (браузер не показывает точнее)"
+    return f"≈ {ram:g} ГБ (округлено браузером)"
+
+
+def fmt_screen(d):
+    screen = clean(d.get("screen"))
+    if not screen:
+        return None
+    extra = []
+    ratio = to_float(d.get("pixelRatio"))
+    physical = clean(d.get("physical"))
+    if ratio and ratio > 0:
+        extra.append(f"плотность ×{round(ratio, 2):g}")
+    if physical:
+        extra.append(f"≈ {physical} физ. пикселей")
+    return screen + (f" ({', '.join(extra)})" if extra else "")
+
+
+def fmt_refresh(d):
+    hz = to_float(d.get("refreshRate"))
+    if hz and 10 <= hz <= 500:
+        return f"{int(round(hz))} Гц"
+    return None
+
+
+def safe_field(func, data):
+    """Запускает форматирование поля так, чтобы ошибка не ломала весь отчёт."""
+    try:
+        value = func(data)
+        return value if value else NO_DATA
+    except Exception:
+        log.warning("Не удалось обработать поле %s", getattr(func, "__name__", "?"), exc_info=True)
+        return NO_DATA
+
+
+# ---------------------------------------------------------------------------
+#  Сборка отчёта
+# ---------------------------------------------------------------------------
 def build_report(data):
-    """Собирает красивое сообщение. Если какого-то поля нет — пишет «Скрыто системой»."""
+    """Возвращает (разделы, подвал). Раздел = (заголовок, [(эмодзи, название, значение), ...])."""
     if not isinstance(data, dict):
         data = {}
 
-    # --- Операционная система ---
-    os_name = clean(data.get("os"))
-    os_ver = clean(data.get("osVersion"))
-    if not os_name:
-        os_line = HIDDEN
+    system = [
+        ("🖥", "ОС", safe_field(fmt_os, data)),
+        ("🧬", "Архитектура", safe_field(fmt_arch, data)),
+        ("🧭", "Платформа", safe_field(fmt_platform, data)),
+        ("🌐", "Браузер", safe_field(fmt_browser, data)),
+        ("✈️", "Версия Telegram", safe_field(fmt_tg_version, data)),
+        ("🕒", "Часовой пояс", safe_field(fmt_timezone, data)),
+    ]
+    hardware = [
+        ("⚙️", "Ядра процессора", safe_field(fmt_cores, data)),
+        ("🧠", "ОЗУ", safe_field(fmt_ram, data)),
+        ("📐", "Экран", safe_field(fmt_screen, data)),
+        ("🎞", "Частота экрана", safe_field(fmt_refresh, data)),
+    ]
+    sections = [("💻 Система", system), ("🔧 Железо", hardware)]
+
+    version = clean(data.get("v"), 20)
+    if version:
+        footer = f"🧩 Версия WebApp: {version}"
     else:
-        os_line = f"{os_name} {os_ver}" if os_ver else os_name
+        footer = "⚠️ Открыта старая версия страницы (кэш Telegram) — сбросьте кэш по инструкции"
+    return sections, footer
 
-    # --- Экран ---
-    screen = clean(data.get("screen"))
-    if not screen:
-        screen_line = HIDDEN
-    else:
-        extra = []
-        ratio = to_number(data.get("pixelRatio"))
-        physical = clean(data.get("physical"))
-        if ratio:
-            extra.append(f"плотность ×{round(ratio, 2):g}")
-        if physical:
-            extra.append(f"≈ {physical} физ. пикселей")
-        screen_line = screen + (f" ({', '.join(extra)})" if extra else "")
 
-    # --- Ядра процессора ---
-    cores = to_number(data.get("cores"))
-    cores_line = str(int(cores)) if cores else HIDDEN
+def render_markdown(sections, footer):
+    lines = ["*📊 СИСТЕМНЫЙ ОТЧЁТ*", LINE]
+    for title, rows in sections:
+        lines.append("")
+        lines.append(f"*{md(title)}*")
+        for emoji, label, value in rows:
+            lines.append(f"{emoji} *{md(label)}:* {md(value)}")
+    lines += ["", LINE, md(footer)]
+    return "\n".join(lines)
 
-    # --- Оперативная память (iOS и Safari её не отдают) ---
-    ram = to_number(data.get("ram"))
-    if not ram:
-        ram_line = HIDDEN
-    elif ram >= 8:
-        ram_line = "8 ГБ или больше (браузер не показывает точнее)"
-    else:
-        ram_line = f"≈ {ram:g} ГБ (округлено браузером)"
 
-    # --- Приложение Telegram ---
-    tg_platform = clean(data.get("tgPlatform"))
-    tg_version = clean(data.get("tgVersion"))
-    if not tg_platform:
-        tg_line = HIDDEN
-    else:
-        tg_line = f"{tg_platform} {tg_version}" if tg_version else tg_platform
-
-    return (
-        "📊 <b>Данные вашего устройства</b>\n\n"
-        f"🖥 <b>ОС:</b> {os_line}\n"
-        f"📐 <b>Экран:</b> {screen_line}\n"
-        f"⚙️ <b>Ядра процессора:</b> {cores_line}\n"
-        f"🧠 <b>ОЗУ:</b> {ram_line}\n"
-        f"✈️ <b>Telegram:</b> {tg_line}"
-    )
+def render_plain(sections, footer):
+    lines = ["📊 СИСТЕМНЫЙ ОТЧЁТ", LINE]
+    for title, rows in sections:
+        lines.append("")
+        lines.append(title)
+        for emoji, label, value in rows:
+            lines.append(f"{emoji} {label}: {value}")
+    lines += ["", LINE, footer]
+    return "\n".join(lines)
 
 
 def send_safe(bot, chat_id, text, **kwargs):
@@ -129,26 +252,41 @@ def send_safe(bot, chat_id, text, **kwargs):
         return None
 
 
+def send_report(bot, chat_id, sections, footer):
+    """Сначала красивый Markdown; если Telegram его не принял — обычный текст."""
+    try:
+        bot.send_message(chat_id, render_markdown(sections, footer), parse_mode="MarkdownV2")
+        return
+    except Exception:
+        log.exception("MarkdownV2 не прошёл, отправляю обычным текстом")
+    send_safe(bot, chat_id, render_plain(sections, footer))
+
+
+def webapp_url():
+    """Ссылка на страницу + номер версии (обход кэша Telegram)."""
+    separator = "&" if "?" in WEBAPP_URL else "?"
+    return f"{WEBAPP_URL}{separator}v={CACHE_BUSTER}"
+
+
 # ---------------------------------------------------------------------------
 #  Сам бот
 # ---------------------------------------------------------------------------
 def create_bot():
-    bot = telebot.TeleBot(BOT_TOKEN, parse_mode="HTML")
+    bot = telebot.TeleBot(BOT_TOKEN)
 
     @bot.message_handler(commands=["start", "help"])
     def cmd_start(message):
         keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
         keyboard.add(
             types.KeyboardButton(
-                "📱 Узнать данные устройства",
-                web_app=types.WebAppInfo(url=WEBAPP_URL),
+                "📊 Системный отчёт",
+                web_app=types.WebAppInfo(url=webapp_url()),
             )
         )
         send_safe(
             bot,
             message.chat.id,
-            "👋 Привет! Я покажу, какие данные об устройстве видит Telegram: "
-            "ОС, экран, ядра процессора и ОЗУ.\n\n"
+            "👋 Привет! Я составлю системный отчёт о вашем устройстве.\n\n"
             "Нажмите кнопку внизу 👇, посмотрите данные на экране "
             "и нажмите «Отправить в чат».",
             reply_markup=keyboard,
@@ -163,12 +301,12 @@ def create_bot():
             data = {}
 
         try:
-            text = build_report(data)
+            sections, footer = build_report(data)
         except Exception:
             log.exception("Ошибка при сборке отчёта")
-            text = build_report({})
+            sections, footer = build_report({})
 
-        send_safe(bot, message.chat.id, text)
+        send_report(bot, message.chat.id, sections, footer)
 
     @bot.message_handler(func=lambda message: True)
     def fallback(message):
@@ -178,7 +316,7 @@ def create_bot():
 
 
 # ---------------------------------------------------------------------------
-#  Мини-сервер «я жив» — нужен бесплатному хостингу Render и сайту-«будильнику»
+#  Мини-сервер «я жив» — нужен бесплатному Render и сайту-«будильнику»
 # ---------------------------------------------------------------------------
 class HealthHandler(BaseHTTPRequestHandler):
     def _ok(self, with_body):
@@ -212,9 +350,9 @@ def start_health_server():
 
 def check_settings():
     if not BOT_TOKEN:
-        sys.exit("❌ Не задана переменная BOT_TOKEN. Вставьте токен от @BotFather в настройках Render.")
+        sys.exit("❌ Не задана переменная BOT_TOKEN (Render -> Environment).")
     if not WEBAPP_URL.startswith("https://"):
-        sys.exit("❌ WEBAPP_URL должна начинаться с https:// (ссылка на вашу страницу GitHub Pages).")
+        sys.exit("❌ WEBAPP_URL должна начинаться с https:// (Render -> Environment).")
 
 
 def main():
@@ -225,7 +363,7 @@ def main():
         bot.remove_webhook()  # на случай, если раньше был включён вебхук
     except Exception:
         log.warning("Не удалось сбросить вебхук (это не страшно)", exc_info=True)
-    log.info("✅ Бот запущен (polling)")
+    log.info("✅ Бот запущен (polling), версия WebApp: %s", CACHE_BUSTER)
     bot.infinity_polling(timeout=20, long_polling_timeout=20)
 
 
